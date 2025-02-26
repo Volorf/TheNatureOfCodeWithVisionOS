@@ -24,12 +24,12 @@ struct RandomWalker: View {
             }
         }
         .onReceive(timer) { time in
-            if counter == randomWalkerModel.modelEntities.count - 1 {
+            if counter == randomWalkerModel.modelEntities.count {
                 timer.upstream.connect().cancel()
             } else {
-                counter += 1
                 randomWalkerModel.addStep()
                 randomWalkerModel.modelEntities[counter].scale = SIMD3<Float>(x: 1.0, y: 1.0, z: 1.0)
+                counter += 1
                 print(counter)
             }
         }
@@ -69,28 +69,21 @@ class RandomWalkerModel: ObservableObject {
     var modelEntities: [ModelEntity] = []
     
     init() {
-        let firstStep = StepData(color: colors[currentColorIndex], position: currentPosition, multiplier: radius * 2)
-        steps.append(firstStep)
         for _ in 0...numberOfIterations {
             
             currentPosition = getNextPosition(curPos: currentPosition)
-            
             let newStep = StepData(color: getNextColor(), position: currentPosition, multiplier: radius * 2)
             
             steps.append(newStep)
             
             let model = ModelEntity(
                 mesh: .generateSphere(radius: radius),
-                materials: [SimpleMaterial(color: UIColor(newStep.color), isMetallic: false)]
-                )
+                materials: [SimpleMaterial(color: UIColor(newStep.color), isMetallic: false)])
                 
             model.position = SIMD3<Float>(x: newStep.getPosition().x, y: newStep.getPosition().y, z: newStep.getPosition().z)
             model.scale = SIMD3<Float>(x: 0.0, y: 0.0, z: 0.0)
-            
             modelEntities.append(model)
         }
-        
-        
     }
     
     func addStep() {
@@ -100,8 +93,8 @@ class RandomWalkerModel: ObservableObject {
     }
     
     func getNextColor() -> Color {
-        currentColorIndex += 1
         let index: Int = currentColorIndex % colors.count
+        currentColorIndex += 1
         return colors[index]
     }
     
@@ -116,7 +109,6 @@ class RandomWalkerModel: ObservableObject {
                 p = pos;
             }
         }
-        
         return p
     }
     
