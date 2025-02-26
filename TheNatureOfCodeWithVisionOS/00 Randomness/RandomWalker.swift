@@ -11,20 +11,28 @@ import RealityKit
 struct RandomWalker: View {
     
     @EnvironmentObject var randomWalkerModel: RandomWalkerModel
+    let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+    let numberIterations: Int = 100
+    @State private var counter: Int = 0
 
     var body: some View {
         
         RealityView { content in
             
-            for step in randomWalkerModel.steps {
-                let model = ModelEntity(
-                    mesh: .generateSphere(radius: randomWalkerModel.radius),
-                    materials: [SimpleMaterial(color: UIColor(step.color), isMetallic: false)]
-                    )
-                    
-                model.position = SIMD3<Float>(x: step.getPosition().x, y: step.getPosition().y, z: step.getPosition().z)
-                    
-                content.add(model)
+            
+            } update: { content in
+                for model in randomWalkerModel.modelEntities {
+                    content.add(model)
+            }
+        }
+        .onReceive(timer) { time in
+            if counter == randomWalkerModel.modelEntities.count - 1 {
+                timer.upstream.connect().cancel()
+            } else {
+                counter += 1
+                randomWalkerModel.addStep()
+                randomWalkerModel.modelEntities[counter].scale = SIMD3<Float>(x: 1.0, y: 1.0, z: 1.0)
+                print(counter)
             }
         }
     }
@@ -52,41 +60,77 @@ struct StepData: Identifiable {
 }
 
 class RandomWalkerModel: ObservableObject {
-    let radius: Float = 0.1
-    var steps: [StepData] = []
-    var currentPosition: SIMD3<Int> = .zero
-    let colors: [Color] = [.red, .orange, .yellow, .green, .blue, .purple]
+    let radius: Float = 0.025
+    @Published var steps: [StepData] = []
+    var currentPosition: SIMD3<Int> = SIMD3<Int>(0, 40, -40)
+    let colors: [Color] = [Color("Red"), Color("Orange"), Color("Yellow"), Color("Lime"), Color("Green"), Color("Teal"), Color("LightBlue"), Color("Blue"), Color("DarkBlue"), Color("Purple"), Color("Magenta"), Color("Pink")]
     var currentColorIndex: Int = 0
     var oldSteps: Set<SIMD3<Int>> = []
+    let numberOfIterations: Int = 1000
+    var modelEntities: [ModelEntity] = []
     
     init() {
-        let firstStep = StepData(color: .green, position: currentPosition, multiplier: radius * 2)
+        let firstStep = StepData(color: colors[currentColorIndex], position: currentPosition, multiplier: radius * 2)
         steps.append(firstStep)
-        for _ in 1...10 {
-            var xStep: Int = 0
-            var yStep: Int = 0
-            var zStep: Int = 0
-            let xyzInd: Int = Int.random(in: 0..<3)
-            let ranOff = Int.random(in: -1...1)
-            xStep = xyzInd == 0 ? ranOff : 0
-            yStep = xyzInd == 1 ? ranOff : 0
-            zStep = xyzInd == 2 ? ranOff : 0
+        for _ in 0...numberOfIterations {
             
-//            let color: Color = colors[Int.random(in: 0..<colors.count)]
+            currentPosition = getNextPosition(curPos: currentPosition)
             
-            print("xStep: \(xStep), yStep: \(yStep), zStep: \(zStep)")
-            currentPosition.x += xStep
-            currentPosition.y += yStep
-            currentPosition.z += zStep
             let newStep = StepData(color: getNextColor(), position: currentPosition, multiplier: radius * 2)
             
             steps.append(newStep)
+            
+            let model = ModelEntity(
+                mesh: .generateSphere(radius: radius),
+                materials: [SimpleMaterial(color: UIColor(newStep.color), isMetallic: false)]
+                )
+                
+            model.position = SIMD3<Float>(x: newStep.getPosition().x, y: newStep.getPosition().y, z: newStep.getPosition().z)
+            model.scale = SIMD3<Float>(x: 0.0, y: 0.0, z: 0.0)
+            
+            modelEntities.append(model)
         }
+        
+        
+    }
+    
+    func addStep() {
+        currentPosition = getNextPosition(curPos: currentPosition)
+        let newStep = StepData(color: getNextColor(), position: currentPosition, multiplier: radius * 2)
+        steps.append(newStep)
     }
     
     func getNextColor() -> Color {
-        let index: Int = currentColorIndex % colors.count
         currentColorIndex += 1
+        let index: Int = currentColorIndex % colors.count
         return colors[index]
+    }
+    
+    func getNextPosition(curPos: SIMD3<Int>) -> SIMD3<Int> {
+        let newPos: [SIMD3<Int>] = getNextStepPositions(curPos: currentPosition)
+        
+        var p = newPos[0]
+        
+        for pos in newPos {
+            if !oldSteps.contains(pos) {
+                oldSteps.insert(pos)
+                p = pos;
+            }
+        }
+        
+        return p
+    }
+    
+    func getNextStepPositions(curPos: SIMD3<Int>) -> [SIMD3<Int>] {
+        let nextUp: SIMD3<Int> = curPos &+ SIMD3<Int>(0, 1, 0)
+        let nextDown: SIMD3<Int> = curPos &+ SIMD3<Int>(0, -1, 0)
+        let nextLeft: SIMD3<Int> = curPos &+ SIMD3<Int>(-1, 0, 0)
+        let nextRight: SIMD3<Int> = curPos &+ SIMD3<Int>(1, 0, 0)
+        let nextBack: SIMD3<Int> = curPos &+ SIMD3<Int>(0, 0, -1)
+        let nextFront: SIMD3<Int> = curPos &+ SIMD3<Int>(0, 0, 1)
+        
+        let options: [SIMD3<Int>] = [nextUp, nextDown, nextLeft, nextRight, nextBack, nextFront]
+        
+        return options.shuffled()
     }
 }
