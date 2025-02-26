@@ -18,8 +18,6 @@ struct RandomWalker: View {
     var body: some View {
         
         RealityView { content in
-            
-            
             } update: { content in
                 for model in randomWalkerModel.modelEntities {
                     content.add(model)
@@ -35,6 +33,7 @@ struct RandomWalker: View {
                 print(counter)
             }
         }
+        
     }
 }
 
