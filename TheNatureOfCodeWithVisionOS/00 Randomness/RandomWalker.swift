@@ -27,7 +27,6 @@ struct RandomWalker: View {
             if counter == randomWalkerModel.modelEntities.count {
                 timer.upstream.connect().cancel()
             } else {
-                randomWalkerModel.addStep()
                 randomWalkerModel.modelEntities[counter].scale = SIMD3<Float>(x: 1.0, y: 1.0, z: 1.0)
                 counter += 1
                 print(counter)
@@ -84,12 +83,6 @@ class RandomWalkerModel: ObservableObject {
             model.scale = SIMD3<Float>(x: 0.0, y: 0.0, z: 0.0)
             modelEntities.append(model)
         }
-    }
-    
-    func addStep() {
-        currentPosition = getNextPosition(curPos: currentPosition)
-        let newStep = StepData(color: getNextColor(), position: currentPosition, multiplier: radius * 2)
-        steps.append(newStep)
     }
     
     func getNextColor() -> Color {
