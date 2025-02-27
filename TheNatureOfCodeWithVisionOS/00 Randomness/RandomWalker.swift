@@ -58,25 +58,50 @@ struct StepData: Identifiable {
 }
 
 class RandomWalkerModel: ObservableObject {
+    
     let radius: Float = 0.025
+    let limitBox: SIMD3<Int> = SIMD3<Int>(20, 20, 20)
     @Published var steps: [StepData] = []
-    var currentPosition: SIMD3<Int> = SIMD3<Int>(0, 40, -40)
-    let colors: [Color] = [Color("Red"), Color("Orange"), Color("Yellow"), Color("Lime"), Color("Green"), Color("Teal"), Color("LightBlue"), Color("Blue"), Color("DarkBlue"), Color("Purple"), Color("Magenta"), Color("Pink")]
+    var currentPosition: SIMD3<Int> = SIMD3<Int>(0, 0, 0)
+//    let colors: [Color] = [Color("Red"), Color("Orange"), Color("Yellow"), Color("Lime"), Color("Green"), Color("Teal"), Color("LightBlue"), Color("Blue"), Color("DarkBlue"), Color("Purple"), Color("Magenta"), Color("Pink")]
+    
+    var colors: [Color] = []
     var currentColorIndex: Int = 0
     var oldSteps: Set<SIMD3<Int>> = []
-    let numberOfIterations: Int = 1000
+    let numberOfIterations: Int = 400
     var modelEntities: [ModelEntity] = []
     
+    func generateColors(num: Int) -> [Color] {
+        var colors: [Color] = []
+        for i in 0...num {
+            let h = Double(i) / Double(num)
+//            print("hue: \(h)")
+            let c = Color(hue: h, saturation: 1, brightness: 1)
+            colors.append(c)
+        }
+        return colors
+    }
+    
     init() {
+        
+        colors = generateColors(num: 96)
+        
         for _ in 0...numberOfIterations {
             
             currentPosition = getNextPosition(curPos: currentPosition)
+            if oldSteps.contains(currentPosition) {
+                break
+            }
+               
+            oldSteps.insert(currentPosition)
+            
             let newStep = StepData(color: getNextColor(), position: currentPosition, multiplier: radius * 2)
             
             steps.append(newStep)
             
             let model = ModelEntity(
-                mesh: .generateSphere(radius: radius),
+//                mesh: .generateSphere(radius: radius)
+                mesh: .generateBox(size: radius * 2, cornerRadius: radius / 8),
                 materials: [SimpleMaterial(color: UIColor(newStep.color), isMetallic: false)])
                 
             model.position = SIMD3<Float>(x: newStep.getPosition().x, y: newStep.getPosition().y, z: newStep.getPosition().z)
@@ -94,15 +119,18 @@ class RandomWalkerModel: ObservableObject {
     func getNextPosition(curPos: SIMD3<Int>) -> SIMD3<Int> {
         let newPos: [SIMD3<Int>] = getNextStepPositions(curPos: currentPosition)
         
-        var p = newPos[0]
-        
         for pos in newPos {
-            if !oldSteps.contains(pos) {
-                oldSteps.insert(pos)
-                p = pos;
+            if (!oldSteps.contains(pos) &&
+                pos.x <= limitBox.x &&
+                pos.x >= -limitBox.x &&
+                pos.y <= limitBox.y &&
+                pos.y >= -limitBox.y &&
+                pos.z <= limitBox.z &&
+                pos.z >= -limitBox.z) {
+                return pos;
             }
         }
-        return p
+        return curPos
     }
     
     func getNextStepPositions(curPos: SIMD3<Int>) -> [SIMD3<Int>] {
